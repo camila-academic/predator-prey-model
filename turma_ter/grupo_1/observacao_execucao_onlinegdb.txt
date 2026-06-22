@@ -1,0 +1,23 @@
+Prezado professor,
+
+Estou encaminhando esta observação sobre a execução do meu código em C.
+
+O programa foi desenvolvido para rodar no terminal e utiliza emojis para representar os elementos do simulador da floresta, como ovelhas, lobos, caçadores, árvores, casas e pedras. No entanto, ao transformar o código em executável (.exe) e abrir diretamente pelo Windows, alguns emojis podem aparecer bugados ou como caracteres estranhos.
+
+Esse problema não está relacionado à lógica do programa, mas sim à forma como alguns terminais do Windows interpretam caracteres Unicode/UTF-8. Dependendo do terminal utilizado, da codificação configurada e da fonte instalada, os emojis podem não ser exibidos corretamente.
+
+Por esse motivo, peço, por gentileza, que o código seja executado preferencialmente no OnlineGDB, pois o ambiente online costuma lidar melhor com a saída do terminal e evita problemas de compatibilidade do Windows com emojis.
+
+Link do ambiente:
+https://www.onlinegdb.com/online_c_compiler
+
+Caso rode localmente no Windows, também é recomendado abrir o programa pelo terminal e executar antes o comando:
+
+chcp 65001
+
+Depois disso, executar o arquivo .exe pelo terminal. Mesmo assim, dependendo do terminal, os emojis ainda podem não aparecer corretamente.
+
+Reforço que o problema é apenas visual, relacionado à exibição dos emojis no terminal. A lógica do código, as movimentações, as regras de predação, reprodução e finalização do jogo continuam funcionando normalmente.
+
+Atenciosamente,
+Pedro
