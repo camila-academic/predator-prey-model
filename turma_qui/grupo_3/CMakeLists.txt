@@ -36,15 +36,17 @@ target_compile_options(game PRIVATE
 )
 
 # Copia os assets do jogo pra o diretório de build
-file(GLOB_RECURSE PNG_FILES
+file(GLOB_RECURSE ASSET_FILES
         "${CMAKE_SOURCE_DIR}/assets/*.png"
+        "${CMAKE_SOURCE_DIR}/assets/*.ttf"
+        "${CMAKE_SOURCE_DIR}/assets/*LICENSE"
 )
 
-foreach(PNG_FILE ${PNG_FILES})
+foreach(ASSET_FILE ${ASSET_FILES})
 
     file(RELATIVE_PATH REL_PATH
             "${CMAKE_SOURCE_DIR}/assets"
-            "${PNG_FILE}"
+            "${ASSET_FILE}"
     )
 
     get_filename_component(
@@ -60,7 +62,7 @@ foreach(PNG_FILE ${PNG_FILES})
             "${CMAKE_SOURCE_DIR}/bin/assets/${REL_DIR}"
 
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${PNG_FILE}"
+            "${ASSET_FILE}"
             "${CMAKE_SOURCE_DIR}/bin/assets/${REL_PATH}"
 
             VERBATIM
