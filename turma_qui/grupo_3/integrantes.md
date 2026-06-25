@@ -1,7 +1,4 @@
-# Grupos da turma de Quinta-Feira de estruturas de dados
-
-## Grupo 1:
-[Informações](/turma_qui/grupo_1/README.md)
+## Integrantes:
 
 - Caique Augusto
 - Leonardo Pimentel
