@@ -1,0 +1,125 @@
+# Relatorio Tecnico - Ecossistema de Zumbis
+
+## 1. Objetivo
+
+O objetivo do projeto e simular um ecossistema em linguagem C utilizando
+estruturas de dados para controlar entidades, obstaculos, movimentacao,
+interacoes e evolucao do ambiente ao longo das rodadas.
+
+## 2. Tema escolhido
+
+Tema base:
+
+- Humanos
+- Zumbis
+- Soldados
+
+Os humanos representam a populacao vulneravel, os zumbis representam a ameaca
+principal e os soldados representam uma faccao que controla a quantidade de
+zumbis no mapa.
+
+## 3. Estruturas de dados
+
+### 3.1 Tabuleiro
+
+O tabuleiro foi representado por uma matriz linearizada:
+
+```c
+ObstacleType *obstacles;
+```
+
+Em vez de usar `matriz[linha][coluna]`, foi usado um vetor dinamico com indice:
+
+```c
+indice = linha * tamanho + coluna;
+```
+
+Essa escolha facilita a alocacao dinamica quando o tamanho do tabuleiro e
+escolhido pelo usuario.
+
+### 3.2 Entidades
+
+As entidades foram armazenadas em um vetor dinamico:
+
+```c
+Entity *items;
+```
+
+O vetor aumenta de tamanho com `realloc` quando fica cheio. Essa abordagem
+mantem os dados proximos na memoria e facilita a iteracao por todas as
+entidades a cada rodada.
+
+### 3.3 Structs
+
+Foram usadas structs para organizar os dados:
+
+- `Position`: linha e coluna.
+- `Entity`: tipo, posicao, idade, energia e estado.
+- `EntityList`: vetor dinamico de entidades.
+- `Board`: tamanho e obstaculos.
+- `Simulation`: estado geral da simulacao.
+
+## 4. Regras da simulacao
+
+- O usuario define o tamanho do tabuleiro.
+- O tamanho minimo e 5x5.
+- As quantidades iniciais sao calculadas por percentual.
+- Os elementos sao posicionados aleatoriamente sem sobreposicao.
+- Obstaculos bloqueiam movimentacao.
+- Cada entidade tenta se mover em uma direcao aleatoria.
+- Zumbis eliminam humanos.
+- Soldados eliminam zumbis.
+- Entidades iguais podem se reproduzir.
+- Zumbis perdem energia com o tempo.
+
+## 5. Condicoes de parada
+
+A simulacao para quando:
+
+- Todos os humanos acabam.
+- Todos os zumbis acabam.
+- O numero maximo de rodadas e atingido.
+
+## 6. Analise de memoria
+
+Se `n` e o tamanho do tabuleiro, o numero de celulas e:
+
+```text
+n * n
+```
+
+O tabuleiro usa memoria proporcional a quantidade de celulas:
+
+```text
+O(n^2)
+```
+
+A lista de entidades cresce de acordo com a quantidade de personagens vivos.
+No pior caso, com reproducao, a quantidade de entidades tambem pode crescer
+proporcionalmente ao numero de celulas livres:
+
+```text
+O(n^2)
+```
+
+## 7. Complexidade
+
+A cada rodada, o programa percorre as entidades vivas. Para verificar se uma
+celula esta ocupada, a versao atual busca no vetor de entidades.
+
+Assim, se `e` for a quantidade de entidades:
+
+```text
+Movimentacao por rodada: O(e^2)
+```
+
+Uma otimizacao futura seria manter uma matriz auxiliar de ocupacao, reduzindo
+a busca de entidade por posicao para `O(1)`.
+
+## 8. Melhorias futuras
+
+- Criar matriz auxiliar de ocupacao.
+- Adicionar sistema de fome para todas as faccoes.
+- Implementar comportamento inteligente.
+- Salvar historico das rodadas em arquivo.
+- Comparar vetor dinamico com lista encadeada.
