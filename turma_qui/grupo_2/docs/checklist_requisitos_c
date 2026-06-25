@@ -1,0 +1,86 @@
+# Checklist do Projeto em C
+
+## Tema escolhido
+
+Tema personalizado: humanos, zumbis e soldados.
+
+- Facção 1: Humanos
+- Facção 2: Zumbis
+- Facção 3: Soldados
+
+## Requisitos atendidos
+
+- Código em linguagem C.
+- Jogo executável em terminal.
+- Tamanho do tabuleiro escolhido pelo usuário.
+- Tamanho mínimo de 5x5.
+- Proporções automáticas:
+  - Humanos: 12%
+  - Zumbis: 12%
+  - Soldados: 5%
+  - Obstáculos: 10%
+- Posicionamento aleatório.
+- Sem sobreposição inicial.
+- Obstáculos fixos.
+- Dois tipos de obstáculos:
+  - Árvore
+  - Pedra
+- Movimento aleatório:
+  - Cima
+  - Baixo
+  - Esquerda
+  - Direita
+- Entidades não saem do mapa.
+- Entidades não atravessam obstáculos.
+- Combate:
+  - Zumbi elimina humano.
+  - Soldado elimina zumbi.
+- Reprodução:
+  - Entidades iguais podem gerar novas entidades.
+- Sistema de energia:
+  - Zumbis perdem energia por rodada.
+  - Zumbis recuperam energia ao eliminar humanos.
+- Condições de parada:
+  - Humanos acabam.
+  - Zumbis acabam.
+- Menu interativo:
+  - Executar uma rodada.
+  - Executar 10 rodadas.
+  - Executar até o fim.
+  - Sair.
+
+## Estruturas de dados usadas
+
+- `struct Position`
+- `struct Entity`
+- `struct EntityList`
+- `struct Game`
+- `enum CellType`
+- Matriz dinâmica para o tabuleiro
+- Vetor dinâmico para entidades
+- Ponteiros
+- Alocação dinâmica com `malloc`, `realloc` e `free`
+
+## Análise de memória
+
+Se `n` é o tamanho do tabuleiro:
+
+```text
+Tabuleiro: O(n^2)
+```
+
+Se `e` é a quantidade de entidades:
+
+```text
+Lista de entidades: O(e)
+```
+
+Na versão atual, a busca por uma entidade em uma posição percorre o vetor de
+entidades. Por isso, uma rodada pode chegar a:
+
+```text
+O(e^2)
+```
+
+Uma possível otimização seria criar uma matriz auxiliar de ocupação para
+consultar entidades por posição em tempo constante.
