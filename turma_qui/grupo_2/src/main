@@ -1,0 +1,47 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "simulation.h"
+#include "utils.h"
+
+static int read_int(const char *message, int min_value) {
+    int value;
+
+    do {
+        printf("%s", message);
+
+        if (scanf("%d", &value) != 1) {
+            printf("Entrada invalida. Digite um numero inteiro.\n");
+            while (getchar() != '\n') {
+            }
+            value = min_value - 1;
+        }
+
+        if (value < min_value) {
+            printf("Valor minimo permitido: %d.\n", min_value);
+        }
+    } while (value < min_value);
+
+    return value;
+}
+
+int main(void) {
+    Simulation sim;
+
+    seed_random();
+
+    printf("=== Projeto Final - Ecossistema de Zumbis ===\n\n");
+
+    int size = read_int("Informe o tamanho do tabuleiro (minimo 5): ", 5);
+    int rounds = read_int("Informe o numero maximo de rodadas: ", 1);
+
+    if (!simulation_init(&sim, size, rounds)) {
+        fprintf(stderr, "Erro ao iniciar a simulacao.\n");
+        return EXIT_FAILURE;
+    }
+
+    simulation_run(&sim);
+    simulation_free(&sim);
+
+    return EXIT_SUCCESS;
+}
