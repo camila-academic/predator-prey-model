@@ -36,6 +36,7 @@ typedef struct {
     size_t map_length_y;
 
     bool is_running;
+    uint64_t seed;
 } WorldState;
 
 typedef struct {
