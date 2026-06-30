@@ -1,0 +1,363 @@
+/*
+ * SIMULAÇÃO DE ECOSSISTEMA OTIMIZADA
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+
+#define TAMANHO_GRADE 12
+#define MAX_AGENTES   64
+#define MAX_LOGS      8
+#define ENERGIA_ZUMBI 10
+
+// Definição dos tipos de elementos no mapa
+#define VAZIO    0
+#define HUMANO   1
+#define ZUMBI    2
+#define SOLDADO  3
+#define ARVORE   4
+#define PEDRA    5
+
+// Paleta de Cores
+#define COR_RESET   "\x1b[0m"
+#define COR_HUMANO  "\x1b[1;34m" // Azul Negrito
+#define COR_ZUMBI   "\x1b[1;31m" // Vermelho
+#define COR_SOLDADO "\x1b[1;33m" // Amarelo Negrito
+#define COR_ARVORE  "\x1b[32m"   // Verde Padrão
+#define COR_PEDRA   "\x1b[90m"   // Cinza Escuro
+#define COR_PAINEL  "\x1b[1;35m" // Magenta Negrito
+
+// ESTRUTURA
+typedef struct {
+    unsigned char id;      // Suporta IDs de 1 a 255 (proximo_id não passa de MAX_AGENTES na prática)
+    unsigned char tipo;    // 0 a 5
+    unsigned char x;       // 0 a 11
+    unsigned char y;       // 0 a 11
+    unsigned char vivo;    // 0 ou 1
+    unsigned char energia; // 0 a 10
+} Agente;
+
+// Estado Global do Jogo 
+Agente agentes[MAX_AGENTES];
+unsigned char qtd_agentes = 0;
+unsigned char proximo_id = 1;
+unsigned int rodada_atual = 0;
+signed char estado_jogo = 0; // -1, 0, 1
+
+// Matrizes otimizadas para economizar RAM
+unsigned char mapa[TAMANHO_GRADE][TAMANHO_GRADE];
+signed char id_mapa[TAMANHO_GRADE][TAMANHO_GRADE]; // signed char podendo usar -1 para vazio e até 127 para índices
+
+char historico[MAX_LOGS][64];
+unsigned char qtd_logs = 0;
+
+/* GERENCIAMENTO DE LOGS */
+void registrar_evento(const char *mensagem) {
+    if (qtd_logs < MAX_LOGS) {
+        snprintf(historico[qtd_logs], sizeof(historico[qtd_logs]), "%s", mensagem);
+        qtd_logs++;
+    } else {
+        memmove(historico[0], historico[1], sizeof(historico[0]) * (MAX_LOGS - 1));
+        snprintf(historico[MAX_LOGS - 1], sizeof(historico[MAX_LOGS - 1]), "%s", mensagem);
+    }
+}
+
+void limpar_logs(void) {
+    qtd_logs = 0;
+    memset(historico, 0, sizeof(historico));
+}
+
+/* FUNÇÕES AUXILIARES */
+int numero_aleatorio(int limite) { 
+    return rand() % limite; 
+}
+
+int calcular_distancia(int origem_x, int origem_y, int destino_x, int destino_y) { 
+    return abs(origem_x - destino_x) + abs(origem_y - destino_y); 
+}
+
+int contar_tipo(unsigned char tipo) {
+    int contador = 0;
+    for (int i = 0; i < qtd_agentes; i++) {
+        if (agentes[i].vivo && agentes[i].tipo == tipo) contador++;
+    }
+    return contador;
+}
+
+void atualizar_matriz_ids(void) {
+    memset(id_mapa, -1, sizeof(id_mapa));
+    for (int i = 0; i < qtd_agentes; i++) {
+        if (agentes[i].vivo) id_mapa[agentes[i].y][agentes[i].x] = (signed char)i;
+    }
+}
+
+void adicionar_agente(unsigned char tipo, int x, int y) {
+    if (qtd_agentes < MAX_AGENTES) {
+        agentes[qtd_agentes].id = proximo_id++;
+        agentes[qtd_agentes].tipo = tipo;
+        agentes[qtd_agentes].x = (unsigned char)x;
+        agentes[qtd_agentes].y = (unsigned char)y;
+        agentes[qtd_agentes].vivo = 1;
+        agentes[qtd_agentes].energia = (tipo == ZUMBI) ? ENERGIA_ZUMBI : 0;
+        mapa[y][x] = tipo;
+        id_mapa[y][x] = (signed char)qtd_agentes;
+        qtd_agentes++;
+    }
+}
+
+void compactar_agentes(void) {
+    unsigned char escrita = 0;
+    for (unsigned char leitura = 0; leitura < qtd_agentes; leitura++) {
+        if (agentes[leitura].vivo) {
+            agentes[escrita] = agentes[leitura];
+            escrita++;
+        }
+    }
+    qtd_agentes = escrita;
+    atualizar_matriz_ids();
+}
+
+/* GERAÇÃO DO MAPA */
+void gerar_elemento_fixo(unsigned char tipo, int quantidade) {
+    for (int i = 0, tentativas = 0; i < quantidade && tentativas < 300; tentativas++) {
+        int x = numero_aleatorio(TAMANHO_GRADE);
+        int y = numero_aleatorio(TAMANHO_GRADE);
+        if (mapa[y][x] == VAZIO) { mapa[y][x] = tipo; i++; }
+    }
+}
+
+void gerar_agente(unsigned char tipo, int quantidade) {
+    for (int i = 0, tentativas = 0; i < quantidade && tentativas < 300; tentativas++) {
+        int x = numero_aleatorio(TAMANHO_GRADE);
+        int y = numero_aleatorio(TAMANHO_GRADE);
+        if (mapa[y][x] == VAZIO) { adicionar_agente(tipo, x, y); i++; }
+    }
+}
+
+void inicializar_simulacao(void) {
+    qtd_agentes = 0; proximo_id = 1; rodada_atual = 0; estado_jogo = 0;
+    limpar_logs();
+    memset(mapa, VAZIO, sizeof(mapa));
+    memset(id_mapa, -1, sizeof(id_mapa));
+
+    gerar_elemento_fixo(ARVORE, 8);
+    gerar_elemento_fixo(PEDRA, 5);
+    gerar_agente(HUMANO, 10);
+    gerar_agente(ZUMBI, 3);
+    gerar_agente(SOLDADO, 2);
+    
+    registrar_evento("Ecossistema carregado com sucesso.");
+}
+
+Agente* buscar_mais_proximo(int x, int y, unsigned char tipo_alvo) {
+    Agente *melhor = NULL; 
+    int menor_distancia = 9999;
+    for (int i = 0; i < qtd_agentes; i++) {
+        if (!agentes[i].vivo || agentes[i].tipo != tipo_alvo) continue;
+        int d = calcular_distancia(x, y, agentes[i].x, agentes[i].y);
+        if (d < menor_distancia) { menor_distancia = d; melhor = &agentes[i]; }
+    }
+    return melhor;
+}
+
+int posicao_dentro_do_mapa(int x, int y) {
+    return x >= 0 && x < TAMANHO_GRADE && y >= 0 && y < TAMANHO_GRADE;
+}
+
+int posicao_bloqueada(int x, int y) {
+    return mapa[y][x] == ARVORE || mapa[y][x] == PEDRA;
+}
+
+void mover_para(Agente *a, int novo_x, int novo_y) {
+    mapa[a->y][a->x] = VAZIO;
+    id_mapa[a->y][a->x] = -1;
+
+    a->x = (unsigned char)novo_x;
+    a->y = (unsigned char)novo_y;
+
+    mapa[novo_y][novo_x] = a->tipo;
+    id_mapa[novo_y][novo_x] = (signed char)(a - agentes);
+}
+
+void atacar(Agente *atacante, Agente *vitima, int novo_x, int novo_y) {
+    char msg[64];
+    if (atacante->tipo == ZUMBI && vitima->tipo == HUMANO) {
+        vitima->vivo = 0;
+        atacante->energia = ENERGIA_ZUMBI;
+        snprintf(msg, sizeof(msg), "Zumbi %d devorou Humano %d", atacante->id, vitima->id);
+        registrar_evento(msg);
+        mover_para(atacante, novo_x, novo_y);
+    } 
+    else if (atacante->tipo == SOLDADO && vitima->tipo == ZUMBI) {
+        vitima->vivo = 0;
+        snprintf(msg, sizeof(msg), "Soldado %d abateu Zumbi %d", atacante->id, vitima->id);
+        registrar_evento(msg);
+        mover_para(atacante, novo_x, novo_y);
+    }
+}
+
+void mover_agente(Agente *a) {
+    int direcao_x[] = {0, 0, -1, 1};
+    int direcao_y[] = {-1, 1, 0, 0};
+    int validos_x[4];
+    int validos_y[4];
+    int qtd_validos = 0;
+
+    for (int d = 0; d < 4; d++) {
+        int proximo_x = a->x + direcao_x[d];
+        int proximo_y = a->y + direcao_y[d];
+
+        if (posicao_dentro_do_mapa(proximo_x, proximo_y) && !posicao_bloqueada(proximo_x, proximo_y)) {
+            validos_x[qtd_validos] = proximo_x;
+            validos_y[qtd_validos] = proximo_y;
+            qtd_validos++;
+        }
+    }
+    if (qtd_validos == 0) return;
+
+    int indice_escolhido = numero_aleatorio(qtd_validos);
+    Agente *alvo = NULL;
+
+    if (a->tipo == ZUMBI)   alvo = buscar_mais_proximo(a->x, a->y, HUMANO);
+    if (a->tipo == SOLDADO) alvo = buscar_mais_proximo(a->x, a->y, ZUMBI);
+    if (a->tipo == HUMANO)  alvo = buscar_mais_proximo(a->x, a->y, ZUMBI);
+
+    if (alvo) {
+        int melhor_distancia = (a->tipo == HUMANO) ? -1 : 9999;
+        for (int i = 0; i < qtd_validos; i++) {
+            int d = calcular_distancia(validos_x[i], validos_y[i], alvo->x, alvo->y);
+            if (a->tipo == HUMANO) {
+                if (d > melhor_distancia) { melhor_distancia = d; indice_escolhido = i; }
+            } else {
+                if (d < melhor_distancia) { melhor_distancia = d; indice_escolhido = i; }
+            }
+        }
+    }
+
+    int proximo_x = validos_x[indice_escolhido];
+    int proximo_y = validos_y[indice_escolhido];
+
+    if (mapa[proximo_y][proximo_x] == VAZIO) {
+        mover_para(a, proximo_x, proximo_y);
+    } else {
+        int id_alvo = id_mapa[proximo_y][proximo_x];
+        if (id_alvo != -1) {
+            Agente *vitima = &agentes[id_alvo];
+            atacar(a, vitima, proximo_x, proximo_y);
+        }
+    }
+}
+
+/* FLUXO DA RODADA */
+void processar_rodada(void) {
+    if (estado_jogo != 0) return;
+    rodada_atual++;
+    compactar_agentes();
+
+    int ordem[MAX_AGENTES];
+    for (int i = 0; i < qtd_agentes; i++) ordem[i] = i;
+    for (int i = qtd_agentes - 1; i > 0; i--) {
+        int j = numero_aleatorio(i + 1);
+        int temporario = ordem[i];
+        ordem[i] = ordem[j];
+        ordem[j] = temporario;
+    }
+
+    for (int i = 0; i < qtd_agentes; i++) {
+        Agente *a = &agentes[ordem[i]];
+        if (!a->vivo) continue;
+        if (a->tipo == ZUMBI) {
+            a->energia--;
+            if (a->energia == 0) {
+                a->vivo = 0;
+                mapa[a->y][a->x] = VAZIO;
+                id_mapa[a->y][a->x] = -1;
+
+                char msg[64];
+                snprintf(msg, sizeof(msg), "Zumbi %d morreu de fome", a->id);
+                registrar_evento(msg);
+                continue;
+            }
+        }
+        mover_agente(a);
+    }
+    atualizar_matriz_ids();
+
+    if (contar_tipo(ZUMBI) == 0) estado_jogo = 1;
+    else if (contar_tipo(HUMANO) == 0 && contar_tipo(SOLDADO) == 0) estado_jogo = -1;
+}
+
+/* INTERFACE DE RENDERIZAÇÃO */
+void renderizar_tela(void) {
+    printf("\033[2J\033[H"); 
+    
+    printf(COR_PAINEL "=== SIMULACAO ECOSSISTEMA | Rodada %d ===\n" COR_RESET, rodada_atual);
+    printf("Legenda: "   
+           COR_HUMANO "☺️ Humano" COR_RESET "  "
+           COR_ZUMBI "☠️ Zumbi" COR_RESET "  "
+           COR_SOLDADO "♞ Soldado" COR_RESET "  "
+           COR_ARVORE "♣️ Arvore" COR_RESET "  "
+           COR_PEDRA "■ Pedra" COR_RESET "\n\n");
+
+    for (int y = 0; y < TAMANHO_GRADE; y++) {
+        for (int x = 0; x < TAMANHO_GRADE; x++) {
+            switch (mapa[y][x]) {
+                case VAZIO:   printf(" . "); break;
+                case HUMANO:  printf(COR_HUMANO  " ☺️ " COR_RESET); break;
+                case ZUMBI:   printf(COR_ZUMBI   " ☠️ " COR_RESET); break;
+                case SOLDADO: printf(COR_SOLDADO " ♞ " COR_RESET); break;
+                case ARVORE:  printf(COR_ARVORE  " ♣️ " COR_RESET); break;
+                case PEDRA:   printf(COR_PEDRA   " ■ " COR_RESET); break;
+            }
+        }
+        printf("\n");
+    }
+
+    printf("\n" COR_PAINEL "[Placar]" COR_RESET " Humano: " COR_HUMANO "%d" COR_RESET " | Zumbi: " COR_ZUMBI "%d" COR_RESET " | Soldado: " COR_SOLDADO "%d" COR_RESET "\n", contar_tipo(HUMANO), contar_tipo(ZUMBI), contar_tipo(SOLDADO));
+    printf(COR_PAINEL "------------------- EVENTOS EM FOCO -------------------\n" COR_RESET);
+    if (qtd_logs == 0) printf("  Nenhum evento registrado ainda.\n");
+    for (int i = 0; i < qtd_logs; i++) printf("  %s\n", historico[i]);
+    printf(COR_PAINEL "-------------------------------------------------------\n" COR_RESET);
+}
+
+int main(void) {
+    srand((unsigned)time(NULL));
+    inicializar_simulacao();
+
+    char entrada[8];
+    while (1) {
+        renderizar_tela();
+        if (estado_jogo != 0) {
+            if (estado_jogo == 1) printf(COR_HUMANO "\n** VITORIA: A ameaca zumbi foi erradicada! **\n" COR_RESET);
+            else printf(COR_ZUMBI "\n** DERROTA: O apocalipse triunfou. **\n" COR_RESET);
+            printf("[r] Reiniciar  [q] Sair\n> ");
+        } else {
+            printf("\n[1] Avancar 1 Rodada  [a] Modo Automatico  [r] Reiniciar  [q] Sair\n> ");
+        }
+
+        if (!fgets(entrada, sizeof(entrada), stdin)) break;
+        char comando = entrada[0];
+
+        if (comando == 'q' || comando == 'Q') break;
+        if (comando == 'r' || comando == 'R') { inicializar_simulacao(); continue; }
+        if (estado_jogo != 0) continue;
+
+        if (comando == '1') {
+            processar_rodada();
+        } 
+        else if (comando == 'a' || comando == 'A') {
+            while (estado_jogo == 0) {
+                processar_rodada();
+                renderizar_tela();
+                printf("\nExecutando autoplay... Pressione Ctrl+C para parar no OnlineGDB.\n");
+                fflush(stdout);
+                sleep(1); 
+            }
+        }
+    }
+    printf("Simulação encerrada.\n");
+    return 0;
+}
